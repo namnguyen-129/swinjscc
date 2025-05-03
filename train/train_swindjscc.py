@@ -25,7 +25,7 @@ class SWINJSCCTrainer(BaseTrainer):
         # Khởi tạo model SwinJSCC với args
         self.model = SWINJSCC(args, self.in_channel, self.class_num).to(self.device)
         self.optimizer = Adam(self.model.parameters(), lr=args.lr)
-        self.criterion = Distortion(args)
+        self.criterion = nn.MSELoss(reduction='mean')
         self.base_snr = args.base_snr
 
     def train(self):
@@ -40,8 +40,8 @@ class SWINJSCCTrainer(BaseTrainer):
                     images = batch
                 images = images.to(self.device)
                 # Forward
-                recon, CBR, SNR, mse_per_pixel, loss_G = self.model(images)
-                loss = loss_G
+                recon, CBR, SNR = self.model(images)
+                loss = self.criterion(images, recon)
 
                 # Backward
                 self.optimizer.zero_grad()

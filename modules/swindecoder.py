@@ -31,8 +31,6 @@ class BasicLayer(nn.Module):
             self.upsample = None
 
     def forward(self, x):
-        # print("Input x.shape:", x.shape)  # Dòng in ra kích thước của x
-        # print("sdfsdf", x.shape)  # Dòng in ra kích thước của x với chuỗi "sdfsdf"
         for _, blk in enumerate(self.blocks):
             x = blk(x)
 
@@ -47,10 +45,10 @@ class BasicLayer(nn.Module):
         flops = 0
         for blk in self.blocks:
             flops += blk.flops()
-            print("blk.flops()", blk.flops())
+
         if self.upsample is not None:
             flops += self.upsample.flops()
-            print("upsample.flops()", self.upsample.flops())
+
         return flops
 
     def update_resolution(self, H, W):
@@ -98,7 +96,7 @@ class SwinJSCC_Decoder(nn.Module):
                                norm_layer=norm_layer,
                                upsample=PatchReverseMerging)
             self.layers.append(layer)
-            print("Decoder ", layer.extra_repr())
+
         if C != None:
             self.head_list = nn.Linear(C, embed_dims[0])
         self.apply(self._init_weights)

@@ -244,7 +244,7 @@ class SwinJSCC_Encoder(nn.Module):
                                qkv_bias=qkv_bias, qk_scale=qk_scale,
                                norm_layer=norm_layer,
                                downsample=PatchMerging if i_layer != 0 else None)
-            print("Encoder ", layer.extra_repr())
+
             self.layers.append(layer) # thêm các stage  vào list
         self.norm = norm_layer(embed_dims[-1]) # LayerNorm. số chiều stage cuối 
         if C != None: # nếu không dùng Rate Modnet 
@@ -278,13 +278,11 @@ class SwinJSCC_Encoder(nn.Module):
 
     def forward(self, x, snr, rate, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")):  # Thêm tham số device với giá trị mặc định là 'cpu'
         B, C, H, W = x.size() 
-        print(f"Input images shape: {x.shape}, value:{x}")
+
         x = self.patch_embed(x) # Giảm kích thước ảnh xuống còn H/2, W/2, số channel là C1
         for i_layer, layer in enumerate(self.layers): # đang ở stage mấy 
             x = layer(x) # x đi qua từng tầng stage 
-            print(x.mean())
         x = self.norm(x)
-        print("Chiều của ảnh đã thành B, L(H*W//4**num_stage), C", x.shape)
 
         snr_cuda = torch.tensor(snr, dtype=torch.float).to(device)  # Sử dụng device được truyền vào
         rate_cuda = torch.tensor(rate, dtype=torch.float).to(device)
@@ -310,30 +308,25 @@ class SwinJSCC_Encoder(nn.Module):
             bm = self.bm_list[i](rate_batch).unsqueeze(1).expand(-1, H * W // (self.num_layers ** 4), -1)
             temp = temp * bm
         mod_val = self.sigmoid(self.sm_list[-1](temp)) # đầu ra layer RM cuối cùng sẽ đi qua sigmoid
-        print(f"mod shape: {mod_val.shape}, x values: {mod_val}")
+
         x = x * mod_val # B, num_patches, C4(2)
-        print(f"x shape: {x.shape}, x values: {x}")
+
         mask = torch.sum(mod_val, dim=1)
         sorted, indices = mask.sort(dim=1, descending=True)
-        print(f"indices shape: {indices.shape}, x values: {indices}")
+
         c_indices = indices[:, :rate] # Giữ lại rate kênh lớn nhất(số kênh vào channel)
-        print(f"c_indices shape before reshape: {c_indices.shape}, values: {c_indices}")
+
         # add = torch.Tensor(range(0, B * x.size()[2], x.size()[2])).unsqueeze(1).repeat(1, rate)
         # c_indices = c_indices + add.int().cuda()
         """Chuyển về cùng thiết bị"""
         add = torch.Tensor(range(0, B * x.size()[2], x.size()[2])).unsqueeze(1).repeat(1, rate).to(device) 
         # Tạo tensor: [0, C(x), 2C(x), ..., B*C(x)] C(x) là số kênh đầu ra encoder(C2 or C4)
-        print(f"add shape: {add.shape}, values: {add}")
+
         c_indices = c_indices + add.int()
-        print(f"c_indices shape after addition: {c_indices.shape}, values: {c_indices}")
         mask = torch.zeros(mask.size()).reshape(-1).cuda()
-        print(f"mask shape before reshape: {mask.shape}, values: {mask}")
         mask[c_indices.reshape(-1)] = 1
-        print(f"mask shape after setting indices: {mask.shape}, values: {mask}")
         mask = mask.reshape(B, x.size()[2])
-        print(f"mask shape after reshape: {mask.shape}, values: {mask}")
         mask = mask.unsqueeze(1).expand(-1, H * W // (self.num_layers ** 4), -1)
-        print(f"mask shape after unsqueeze and expand: {mask.shape}, values: {mask}")
 
         mask = mask.to(x.device)  # Chuyển mask về cùng thiết bị với x
         x = x * mask
@@ -468,14 +461,4 @@ def create_encoder(**kwargs):
     model = SwinJSCC_Encoder(**kwargs)
     return model
 
-
-# def build_model(config):
-#     input_image = torch.ones([1, 256, 256]).to(config.device)
-#     model = create_encoder(**config.encoder_kwargs)
-#     model(input_image)
-#     num_params = 0
-#     for param in model.parameters():
-#         num_params += param.numel()
-#     print("TOTAL Params {}M".format(num_params / 10 ** 6))
-#     print("TOTAL FLOPs {}G".format(model.flops() / 10 ** 9))
 

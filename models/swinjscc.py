@@ -37,7 +37,6 @@ class SWINJSCC(BaseModel):
 
     def forward(self, input_image, given_SNR=None, given_rate=None):  # input_image: là x
         B, _, H, W = input_image.shape
-        #print(f"Input size: {input_image.shape}")  # In kích thước đầu vào
 
         if H != self.H or W != self.W:
             self.encoder.update_resolution(H, W)
@@ -55,11 +54,8 @@ class SWINJSCC(BaseModel):
             channel_number = choice(self.channel_number)  # channel_number là ratio
         else:
             channel_number = given_rate
-        print(f"Size of input images: {input_image.shape}")
         # Mặc định là SwinJSCC_w/_SAandRA
         feature, mask = self.encoder(input_image, chan_param, channel_number)
-        print(f"Size of feature after encoder: {feature.shape}")
-        #print(f"Size of mask after encoder: {mask.shape}")
 
         CBR = channel_number / (2 * 3 * 2 ** (self.downsample * 2))
         avg_pwr = torch.sum(feature ** 2) / mask.sum()
@@ -75,34 +71,20 @@ class SWINJSCC(BaseModel):
             )
             #H = W = int(L**0.5)  # Giả định L là số lượng patch (H * W)
             feature_4D = feature.reshape(B, H_patch, W_patch, C).permute(0, 3, 1, 2)  # Chuyển đổi về (B, C, H, W)
-            #print(f"Size of feature before channel: {feature_4D.shape}")
 
             # Qua kênh
             noisy_feature_4D = self.feature_pass_channel(feature_4D, chan_param)
-            print(f"Size of feature after channel B, C, H, W: {noisy_feature_4D.shape}")
 
             # Chuyển đổi noisy_feature về 3D để truyền vào decoder
             noisy_feature = noisy_feature_4D.flatten(2).permute(0, 2, 1)  # Chuyển đổi về (B, L, C)
-            #print(f"Size of noisy_feature after flatten: {noisy_feature.shape}")
         else:
             noisy_feature = feature
 
         noisy_feature = noisy_feature * mask
-        print()
         # Decode
         recon_image = self.decoder(noisy_feature, chan_param)
-        
-        print(f"Size of reconstructed image: {recon_image.shape}")
-        mse = self.squared_difference(input_image * 255., recon_image.clamp(0., 1.) * 255.)
-        loss_G = self.distortion_loss.forward(input_image, recon_image.clamp(0., 1.))
-        return recon_image, CBR, chan_param, mse.mean(), loss_G.mean()
 
-
-
-
-
-
-
+        return recon_image, CBR, chan_param
 
     def get_latent(self, x):
         enc,_ = self.encoder(x)
@@ -112,7 +94,6 @@ class SWINJSCC(BaseModel):
     def get_train_recon(self, x, base_snr):
         z = self.encoder(x)
         z = self.normalize_layer(z)
-        # print("Debug")
         z = self.channel(z)
 
         x_hat = self.decoder(z)

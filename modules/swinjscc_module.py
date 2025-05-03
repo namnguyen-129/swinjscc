@@ -194,8 +194,7 @@ class PatchMerging(nn.Module):
         """
         H, W = self.input_resolution
         B, L, C = x.shape
-        # print(x.shape)
-        # print(self.input_resolution)
+
         assert L == H * W, "input feature has wrong size"
         assert H % 2 == 0 and W % 2 == 0, f"x size ({H}*{W}) are not even."
         x = x.view(B, H, W, C)
@@ -271,7 +270,7 @@ class PatchReverseMerging(nn.Module):
         x = nn.PixelShuffle(2)(x)
         # x = self.proj(x).flatten(2).transpose(1, 2)
         # x = self.norm(x)
-        # print(x.shape)
+
         x = x.flatten(2).permute(0, 2, 1)
         return x
 
@@ -334,12 +333,12 @@ class PatchEmbed(nn.Module):
 
     def forward(self, x):
         B, C, H, W = x.shape
-        #print("x.shape", self.proj(x).shape)
+
         # FIXME look at relaxing size constraints
         # assert H == self.img_size[0] and W == self.img_size[1], \
         #     f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
         x = self.proj(x).flatten(2).transpose(1, 2)  # B Ph*Pw C
-        #print("sdfsdf", x.shape)
+
         if self.norm is not None:
             x = self.norm(x)
         return x

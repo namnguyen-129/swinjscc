@@ -96,8 +96,9 @@ class BaseTrainer:
                     outputs = model_out[0]
                 else:
                     outputs = model_out
-                outputs = image_normalization('denormalization')(outputs)
-                images = image_normalization('denormalization')(images)
+                if self.args.algo == "djsccf":
+                    outputs = image_normalization('denormalization')(outputs)
+                    images = image_normalization('denormalization')(images)
                 loss = self.criterion(images, outputs) if not self.parallel else self.criterion(
                     images, outputs)
                 epoch_loss += loss.detach().item()
